@@ -63,10 +63,7 @@ impl UnknownField {
     }
 
     /// Encodes this field into its byte representation.
-    pub fn encode<B>(&self, buf: &mut B)
-    where
-        B: BufMut,
-    {
+    pub fn encode(&self, buf: &mut (impl BufMut + ?Sized)) {
         match &self.value {
             UnknownFieldValue::Varint(value) => {
                 encoding::encode_key(self.number, WireType::Varint, buf);
@@ -238,9 +235,8 @@ impl UnknownFieldSet {
 }
 
 impl Message for UnknownFieldSet {
-    fn encode_raw<B>(&self, buf: &mut B)
+    fn encode_raw(&self, buf: &mut (impl BufMut + ?Sized))
     where
-        B: BufMut,
         Self: Sized,
     {
         for field in &self.fields {
@@ -248,15 +244,14 @@ impl Message for UnknownFieldSet {
         }
     }
 
-    fn merge_field<B>(
+    fn merge_field(
         &mut self,
         number: u32,
         wire_type: WireType,
-        buf: &mut B,
+        buf: &mut impl Buf,
         ctx: DecodeContext,
     ) -> Result<(), DecodeError>
     where
-        B: Buf,
         Self: Sized,
     {
         let field = UnknownField::decode_value(number, wire_type, buf, ctx)?;

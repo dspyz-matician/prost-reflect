@@ -15,9 +15,8 @@ use super::{
 };
 
 impl Message for DynamicMessage {
-    fn encode_raw<B>(&self, buf: &mut B)
+    fn encode_raw(&self, buf: &mut (impl BufMut + ?Sized))
     where
-        B: BufMut,
         Self: Sized,
     {
         for field in self.fields.iter(&self.desc) {
@@ -33,15 +32,14 @@ impl Message for DynamicMessage {
         }
     }
 
-    fn merge_field<B>(
+    fn merge_field(
         &mut self,
         number: u32,
         wire_type: WireType,
-        buf: &mut B,
+        buf: &mut impl Buf,
         ctx: DecodeContext,
     ) -> Result<(), DecodeError>
     where
-        B: Buf,
         Self: Sized,
     {
         if let Some(field_desc) = self.desc.get_field(number) {
@@ -83,10 +81,11 @@ impl Message for DynamicMessage {
 }
 
 impl Value {
-    pub(super) fn encode_field<B>(&self, field_desc: &impl FieldDescriptorLike, buf: &mut B)
-    where
-        B: BufMut,
-    {
+    pub(super) fn encode_field(
+        &self,
+        field_desc: &impl FieldDescriptorLike,
+        buf: &mut (impl BufMut + ?Sized),
+    ) {
         if !field_desc.supports_presence() && field_desc.is_default_value(self) {
             return;
         }
@@ -272,16 +271,13 @@ impl Value {
         }
     }
 
-    pub(super) fn merge_field<B>(
+    pub(super) fn merge_field(
         &mut self,
         field_desc: &impl FieldDescriptorLike,
         wire_type: WireType,
-        buf: &mut B,
+        buf: &mut impl Buf,
         ctx: DecodeContext,
-    ) -> Result<(), DecodeError>
-    where
-        B: Buf,
-    {
+    ) -> Result<(), DecodeError> {
         match (self, field_desc.kind()) {
             (Value::Bool(value), Kind::Bool) => {
                 prost::encoding::bool::merge(wire_type, value, buf, ctx)
@@ -546,10 +542,7 @@ impl Value {
 }
 
 impl MapKey {
-    fn encode_field<B>(&self, field_desc: &FieldDescriptor, buf: &mut B)
-    where
-        B: BufMut,
-    {
+    fn encode_field(&self, field_desc: &FieldDescriptor, buf: &mut (impl BufMut + ?Sized)) {
         if !field_desc.supports_presence() && self.is_default(&field_desc.kind()) {
             return;
         }
@@ -593,16 +586,13 @@ impl MapKey {
         }
     }
 
-    fn merge_field<B>(
+    fn merge_field(
         &mut self,
         field_desc: &FieldDescriptor,
         wire_type: WireType,
-        buf: &mut B,
+        buf: &mut impl Buf,
         ctx: DecodeContext,
-    ) -> Result<(), DecodeError>
-    where
-        B: Buf,
-    {
+    ) -> Result<(), DecodeError> {
         match (self, field_desc.kind()) {
             (MapKey::Bool(value), Kind::Bool) => {
                 prost::encoding::bool::merge(wire_type, value, buf, ctx)
@@ -695,7 +685,7 @@ impl MapKey {
 fn encode_packed_list<T, I, B, E, L>(number: u32, iter: I, buf: &mut B, encode: E, encoded_len: L)
 where
     I: IntoIterator<Item = T> + Clone,
-    B: BufMut,
+    B: BufMut + ?Sized,
     E: Fn(T, &mut B),
     L: Fn(T) -> usize,
 {
